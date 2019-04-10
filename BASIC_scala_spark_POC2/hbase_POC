@@ -1,0 +1,339 @@
+/*
+
+$spark-shell --driver-class-path=$(hbase classpath)
+
+###################
+HBASE SCALA
+
+####################
+
+import org.apache.hadoop.hbase.{HBaseConfiguration, HTableDescriptor,HColumnDescriptor,HConstants,TableName,CellUtil}
+import org.apache.hadoop.hbase.client.{HBaseAdmin, Result,Put,HTable,ConnectionFactory,Connection,Get,Scan}
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable
+import org.apache.hadoop.hbase.mapreduce.TableInputFormat
+import org.apache.hadoop.hbase.util.Bytes
+
+
+val hconf = HBaseConfiguration.create()
+// create Admin instance and set input format
+////hconf.set(TableInputFormat.INPUT_TABLE,tablename)  
+
+/*   
+   little different process
+      val hconf = HBaseConfiguration.create()
+      hconf.set("hbase.zookee per.quorum","localhost")
+      hconf.set("hbase.zookeeper.property.clientPort","2181") 
+      val admin = new HBaseAdmin(hconf)
+      val hconn=ConnectionFactory.createConnection(hconf)
+      var tabName_string= admin.getTableNames("student")(0)
+      val table = new HTable(hconf,tabName_string)  // create table connection
+      var data= table.get(new Get(Bytes.toBytes("row-id97")))
+
+
+		data.rawCells()
+		data.rawCells().foreach(x=> println(Bytes.toString(CellUtil.cloneQualifier(x))))
+		data.rawCells().foreach(x=> println(Bytes.toString(CellUtil.cloneValue(x))))
+		data.rawCells().foreach(x=> println(Bytes.toString(CellUtil.cloneFamily(x))))
+
+		data.rawCells().foreach(x=> println(Bytes.toString(x.getQualifier())))
+		data.rawCells().foreach(x=> println(Bytes.toString(x.getValue())))
+		data.rawCells().foreach(x=> println(Bytes.toString(x.getFamily())))
+
+
+		def getHBaseRowData (x: org.apache.hadoop.hbase.Cell, hint: Int )=  { 
+					if(hint == 1){
+					   ((Bytes.toString(x.getRow())), Bytes.toString(CellUtil.cloneQualifier(x)))
+					} else if(hint == 2) { 
+					    ((Bytes.toString(x.getRow())),Bytes.toString(CellUtil.cloneValue(x))) 
+					} else if(hint == 3) { 
+						((Bytes.toString(x.getRow())),Bytes.toString(CellUtil.cloneFamily(x))) 
+					} else if(hint == 4) { 
+					((Bytes.toString(x.getRow())),(Bytes.toString(CellUtil.cloneQualifier(x))), (Bytes.toString(CellUtil.cloneFamily(x))), (Bytes.toString(CellUtil.cloneValue(x)))) 
+					} else 
+					  ("Wrong Hint")
+		    }
+
+		data.rawCells().foreach(x=> println(getHBaseRowData(x,4)))
+
+
+		def getHBaseRowDatax (x: org.apache.hadoop.hbase.Cell, hint: Int )=  { 
+					if(hint == 1){
+					   ((Bytes.toString(x.getRow())), Bytes.toString(x.getQualifier))
+					} else if(hint == 2) { ((Bytes.toString(x.getRow())),Bytes.toString(CellUtil.cloneValue(x))) } 
+					else if(hint == 3) { ((Bytes.toString(x.getRow())),Bytes.toString(CellUtil.cloneFamily(x))) } 
+					else if(hint == 4) { ((Bytes.toString(x.getRow())),(Bytes.toString(x.getQualifier())), (Bytes.toString(CellUtil.cloneFamily(x))), (Bytes.toString(CellUtil.cloneValue(x)))) } 
+					else 
+					    ("Wrong Hint")
+		    }
+
+
+      			val hconf = HBaseConfiguration.create()
+      			hconf.set("hbase.zookee per.quorum","localhost")
+      			hconf.set("hbase.zookeeper.property.clientPort","2181") 
+      			hconf.set(TableInputFormat.INPUT_TABLE, "student")
+      			val hconn=ConnectionFactory.createConnection(hconf)
+      			val admin = new HBaseAdmin(hconf)
+                val rdd = sc.newAPIHadoopRDD(hconf, classOf[TableInputFormat], classOf[ImmutableBytesWritable], classOf[Result])
+                rdd.count()
+               // var tabName_string= admin.getTableNames("student")(0)
+
+		        
+
+else if(Boolean_expression 3){
+   //Executes when the Boolean expression 3 is true
+} else {
+   //Executes when the none of the above condition is true.
+}
+
+     def d1 (x: org.apache.hadoop.hbase.Cell, x: Int )={  if (x == 2) (Bytes.toString(CellUtil.cloneQualifier(x))} 
+                    else if (x == 1) 
+                       { (Bytes.toString(CellUtil.cloneFamily(x)) }  
+         }
+     
+
+      //hconf.set(TableInputFormat.INPUT_TABLE,"student")
+
+      // rest is same but here no need to flush commit
+     
+      
+*/
+
+
+val admin = new HBaseAdmin(hconf)
+
+
+//List all the tables = (multiple table descriptor)
+admin.listTables
+
+// return list of table array
+admin.getTableNames("student")
+
+// return given table name in String format
+var tabName_string= admin.getTableNames("student")(0)
+
+admin.listTables.foreach(x=>println(x.getTableName))
+admin.listTables.foreach(x=>println(x.getColumnFamilies.toList))
+admin.listTables.foreach(x=>println(x.getFamilies))
+
+//for single table ( single table descriptor )
+admin.listTables("test").foreach(x=> println(x.getFamilies))
+admin.listTables("test").foreach(x=> println(x.getTableName))
+
+//return column famility -column Descriptor
+admin.listTables("student").map(x=> x.getFamilies)
+
+
+//CREATE TABLE WITH COLUMN FAMILY
+var tabname= "mytab"
+var table_name = new HTableDescriptor(tabname);
+var family_name = new HColumnDescriptor("myfam".getBytes());
+table_name.addFamily(family_name);
+admin.createTable(table_name);
+
+
+//CREATE TABLE WITH COLUMN FAMILTY is not exist else ignore
+if(!admin.isTableAvailable(tabname)){
+var table_name = new HTableDescriptor(tabname);
+var family_name = new HColumnDescriptor("myfam1".getBytes());
+table_name.addFamily(family_name);
+} else
+  { println ("table already exist, can not recreate"); }
+
+
+// INSERT/UPDATE - PUT   , SELECT -GET   , select all - SCAN
+
+var tabName_string= admin.getTableNames("student")(0)
+val table = new HTable(hconf,tabName_string)  // create table connection
+
+var x = 101
+var p = new Put(new String("pk"+x).getBytes());
+p.add("personal".getBytes(),"name".getBytes(), new String("Dalwinder singh" + x).getBytes());
+p.add("personal".getBytes(),"age".getBytes(), new String("" + x).getBytes());
+table.put(p)
+table.flushCommits()
+
+for (x<- (20001 to 20100)) {
+	var p = new Put(new String("row-id" + x).getBytes())
+	p.add("personal".getBytes(),"name".getBytes(),new String("Dalwinder-" +  x).getBytes())
+    p.add("personal".getBytes(),"age".getBytes(),new String("" +  x).getBytes())
+    p.add("personal".getBytes(),"lname".getBytes(),new String("singh-").getBytes())
+	p.add("address".getBytes(),"flat/house-no".getBytes(),new String("B-" + x ).getBytes())
+	p.add("address".getBytes(),"area".getBytes(),new String("Adithi Bliss Apartment, GUNJUR").getBytes())
+	p.add("address".getBytes(),"pincode".getBytes(),new String("1100-"+ x).getBytes())
+	p.add("address".getBytes(),"City".getBytes(), new String("Banaglore").getBytes())
+	p.add("address".getBytes(),"state".getBytes(),new String("KARNATAKA-1100" + x).getBytes())
+	p.add("address".getBytes(),"Country".getBytes(),new String("India").getBytes())
+    p.add("study".getBytes(),"highest degree".getBytes(),new String("'Diploma in computer engineering"+ x).getBytes())
+    p.add("study".getBytes(),"collega".getBytes(),new String("Guru nanak dev politechnic"+ x ).getBytes())
+    p.add("study".getBytes(),"passing year".getBytes(),new String("2005"+ x).getBytes())
+    tabname.put(p)
+}
+
+table.flushCommits()
+
+{
+	Go to shell and type $hbase shell
+          $ scan 'student',  {COLUMNS=> 'study'}
+          $ get 'student', 'row-id93', {COLUMNS=> 'study'}
+          $ get 'student', 'row-id93', {COLUMNS=> 'address'}
+          // care fully observer there is single(" '  " ) got added by mistake But no worry we can still fetch it
+          $  scan 'student',{COLUMNS=> 'study:highest degree',FILTER =>  "ValueFilter(=,'binary:''Diploma in computer engineering96')" }
+
+
+}
+
+////val conf = new HBaseConfiguration()
+////val connection = ConnectionFactory.createConnection(conf);
+////val admin1 = connection.getAdmin();
+
+
+//val table = new HTable(conf, "mytable")
+
+//val theput= new Put(Bytes.toBytes("rowkey1"))
+
+//theput.add(Bytes.toBytes("ids"),Bytes.toBytes("id1"),Bytes.toBytes("one"))
+//table.put(theput)
+
+val theget= new Get(Bytes.toBytes("rowkey1"))
+val result=table.get(theget)
+val value=result.value()
+println(Bytes.toString(value))
+
+
+/*
+
+###################
+HBASE SHELL
+
+####################
+status
+status 'simple'
+status 'detailed'
+create_namespace 'nysc'
+create_namespace 'training'
+create table 'traiing:hbdemo','cf'
+create table 'nysc:stock_data', 'sd'
+create tabke  'nysc:stock_data_wide', 'sd'
+list
+desc 'nysc'
+desc 'nysc:stock_data'
+list_namespace
+list_namespace_tables 'nysc'
+
+put 'nysc:test', 1, 'nysc:c5', 'v5'
+put 'nysc:test', 1, 'nysc:c6', 'v7'
+put 'nysc:test', 2, 'nysc:c9', 'v8'
+put 'nysc:test', 3, 'nysc:c9', 'v9'
+put 'nysc:test', 6, 'nysc:c9', 'v10'
+
+scan 'nysc:test'
+get 'nysc:test',1
+get 'nysc:test',2
+
+scan 'nysc:test' {LIMIT=> 10}
+
+disable 'training:hbdemo'
+enable 'training:hbdemo'
+disable 'training:hbdemo'
+enable
+drop 'training:hbdemo'
+drop_namespace 'training'
+help
+table_help
+whoami
+
+
+
+create 'sentences', 'words', 'info'
+put 'sentences', 'row1', 'words:subject', 'I'
+put 'sentences', 'row1', 'words:verb', 'drink'
+put 'sentences', 'row1', 'words:object', 'coffee'
+get 'sentences', 'row1'
+scan 'sentences'
+
+
+put 'sentences', 'row1', 'words:object', 'tea'
+get 'sentences', 'row1'
+put 'sentences', 'row1', 'info:language', 'English'
+
+put 'sentences', 'row2', 'words:subject', 'Ich'
+put 'sentences', 'row2', 'words:verb', 'trinke'
+put 'sentences', 'row2', 'words:object', 'Wasser'
+put 'sentences', 'row2', 'info:language', 'Deutsch'
+
+
+scan 'sentences'
+count 'sentences'
+scan 'sentences',{FILTER =>  "ValueFilter(=,'binary:English')"}
+scan 'sentences',{FILTER =>  "ValueFilter(=,'binary:Deutsch')"}
+scan 'sentences',{COLUMNS=> 'words:object' } 
+scan 'sentences',{COLUMNS=> 'words:object',FILTER =>  "ValueFilter(=,'binary:Wasser')" }
+scan 'sentences',{COLUMNS=>'words:subject' ,ROWPREFIXFILTER=> 'row'}
+scan 'sentences',{COLUMNS=>'words:subject' ,ROWPREFIXFILTER=> 'row1'}
+scan 'sentences',{COLUMNS=>'words:subject' ,ROWPREFIXFILTER=> 'row2'}
+
+
+put 'sentences', 'row3', 'words:subject', 'Grandma'
+put 'sentences', 'row3', 'words:verb', 'bakes'
+put 'sentences', 'row3', 'words:adjective', 'delicious'
+put 'sentences', 'row3', 'words:object', 'cakes'
+
+get 'sentences', 'row3'
+scan 'sentences', 'row3'
+
+
+//Create table with table familty versioned
+ create 'testtable', 'colfam1' , { VERSIONS => 3 }
+  list 'testtable'
+  put 'testtable', 'myrow-1', 'colfam1:q1', 'value-1'
+  put 'testtable', 'myrow-2', 'colfam1:q2', 'value-2'
+  put 'testtable', 'myrow-2', 'colfam1:q3', 'value-3'
+  scan 'testtable'
+  get 'testtable', 'myrow-1'     
+ delete 'testtable', 'myrow-2', 'colfam1:q2'
+ scan 'testtable'
+  disable 'testtable'
+  drop 'testtable'
+
+//alter table to increatse family versioned
+alter 't1_data', NAME=> 'f1' , VERSIONS => '5'
+alter 'testtable', NAME=> 'colfam1',VERSIONS=> 100
+
+
+create 'TAB_FAM_VERSION', { NAME=>'FAM1' , VERSIONS => 10 }, {NAME=>'FAM3' , VERSIONS => 10 }
+alter 'TAB_FAM_VERSION', { NAME=>'FAM1' , VERSIONS => 10 }, {NAME=>'FAM3' , VERSIONS => 10 }
+desc 'TAB_FAM_VERSION'
+
+// alter table delete column familty
+alter 'TAB_FAM_VERSION' , 'delete' => 'FAM1'
+
+
+put 'TAB_FAM_VERSION' , 1, 'FAM3:age', 26
+put 'TAB_FAM_VERSION' , 1, 'FAM3:name', 'dalwinder'
+
+alter 'TAB_FAM_VERSION' , 'delete' => 'FAM3'
+
+//adding Column family
+alter 'TAB_FAM_VERSION' , {NAME=>'FAM10', VERSIONS=>5}, {NAME=>'FAM11', VERSIONS=>5}
+desc 'TAB_FAM_VERSION'
+
+
+// delete column
+alter 'TAB_FAM_VERSION' , {NAME=>'FAM3', VERSIONS=>5}
+
+put 'TAB_FAM_VERSION' , 1, 'FAM3:age', 26
+put 'TAB_FAM_VERSION' , 1, 'FAM3:name', 'dalwinder'
+
+alter 'TAB_FAM_VERSION' , 'delete' => 'FAM3:age'
+alter 'TAB_FAM_VERSION' , 'delete' => 'FAM3:name'
+
+
+
+Show_filters
+
+
+Alter
+Alter_status
+
+
+*/
